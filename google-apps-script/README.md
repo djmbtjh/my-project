@@ -34,8 +34,8 @@
 將複製的網址填入專案根目錄的 `.env`：
 ```env
 GOOGLE_APP_SCRIPT_URL=https://script.google.com/macros/s/AKfycb.../exec
-PASS_THRESHOLD=3
-QUESTION_COUNT=5
+PASS_THRESHOLD=32
+QUESTION_COUNT=40
 ```
 
 > **提示**：前端專案已內建「即時連線模擬器」。若尚未部署 GAS 網址，系統亦可無縫進行單機模擬測試與完整遊戲試玩！

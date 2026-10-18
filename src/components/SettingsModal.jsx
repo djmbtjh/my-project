@@ -6,8 +6,8 @@ import { getRuntimeConfig, saveRuntimeConfig } from '../services/api';
 export default function SettingsModal({ onClose, onConfigUpdated }) {
   const current = getRuntimeConfig();
   const [gasUrl, setGasUrl] = useState(current.gasUrl);
-  const [passThreshold, setPassThreshold] = useState(current.passThreshold);
-  const [questionCount, setQuestionCount] = useState(current.questionCount);
+  const [passThreshold, setPassThreshold] = useState(current.passThreshold || 32);
+  const [questionCount, setQuestionCount] = useState(current.questionCount || 40);
   const [testStatus, setTestStatus] = useState(null); // 'loading' | 'success' | 'error'
   const [testMessage, setTestMessage] = useState('');
 
@@ -43,8 +43,8 @@ export default function SettingsModal({ onClose, onConfigUpdated }) {
     sound.select();
     saveRuntimeConfig({
       gasUrl: gasUrl.trim(),
-      passThreshold: Number(passThreshold) || 3,
-      questionCount: Number(questionCount) || 5,
+      passThreshold: Number(passThreshold) || 32,
+      questionCount: Number(questionCount) || 40,
     });
     if (onConfigUpdated) onConfigUpdated();
     onClose();
@@ -57,8 +57,8 @@ export default function SettingsModal({ onClose, onConfigUpdated }) {
     localStorage.removeItem('CYBER_QUIZ_QUESTION_COUNT');
     const fresh = getRuntimeConfig();
     setGasUrl(fresh.gasUrl);
-    setPassThreshold(fresh.passThreshold);
-    setQuestionCount(fresh.questionCount);
+    setPassThreshold(fresh.passThreshold || 32);
+    setQuestionCount(fresh.questionCount || 40);
     setTestStatus(null);
     setTestMessage('已重置為 .env 原廠預設值');
   };
@@ -182,35 +182,35 @@ export default function SettingsModal({ onClose, onConfigUpdated }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--cyan)', marginBottom: '8px', fontFamily: 'var(--font-tech)' }}>
-              PASS_THRESHOLD (通過門檻)
+              PASS_THRESHOLD (及格門檻)
             </label>
             <input
               type="number"
               min="1"
-              max="20"
+              max="100"
               className="cyber-input"
               value={passThreshold}
               onChange={(e) => setPassThreshold(e.target.value)}
             />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginTop: '4px' }}>
-              需答對幾題才算通關
+              滿分 100 分，80 分及格（需答對 32 題以上）
             </span>
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--cyan)', marginBottom: '8px', fontFamily: 'var(--font-tech)' }}>
-              QUESTION_COUNT (題目總數)
+              QUESTION_COUNT (題目數量)
             </label>
             <input
               type="number"
               min="1"
-              max="30"
+              max="100"
               className="cyber-input"
               value={questionCount}
               onChange={(e) => setQuestionCount(e.target.value)}
             />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginTop: '4px' }}>
-              每次遊玩的關卡數量
+              每次測驗隨機抽取的題目數量（預設 40 題）
             </span>
           </div>
         </div>
