@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import BackgroundGrid from './components/BackgroundGrid';
 import SettingsModal from './components/SettingsModal';
@@ -8,33 +8,22 @@ import SubmittingView from './components/SubmittingView';
 import ResultView from './components/ResultView';
 
 import { sound } from './services/soundEffects';
-import { bossPreloader } from './services/bossManager';
 import { getRuntimeConfig, fetchQuestions, submitAnswers } from './services/api';
 
 export default function App() {
   const [view, setView] = useState('HOME'); // 'HOME' | 'FETCHING' | 'BATTLE' | 'SUBMITTING' | 'RESULT'
   const [userId, setUserId] = useState(() => localStorage.getItem('CYBER_QUIZ_LAST_ID') || '');
+  const [userName, setUserName] = useState(() => localStorage.getItem('CYBER_QUIZ_LAST_NAME') || '');
   const [config, setConfig] = useState(getRuntimeConfig());
   const [isMuted, setIsMuted] = useState(sound.isMuted());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // 100 位關主素材預載入狀態
-  const [preloadProgress, setPreloadProgress] = useState({ loaded: 0, total: 100, percent: 0 });
-
-  // 闖關狀態
+  // 測驗題目狀態
   const [questions, setQuestions] = useState([]);
-  const [stageBosses, setStageBosses] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
   const [resultData, setResultData] = useState(null);
   const [fetchError, setFetchError] = useState(null);
-
-  // 啟動時預載入 100 張 DiceBear 關主素材
-  useEffect(() => {
-    bossPreloader.preloadAll((loaded, total, percent) => {
-      setPreloadProgress({ loaded, total, percent });
-    });
-  }, []);
 
   const handleToggleMute = () => {
     const next = sound.toggleMute();
@@ -45,28 +34,27 @@ export default function App() {
     setConfig(getRuntimeConfig());
   };
 
-  // 開始遊戲流程 (撈取題目並分配關主)
-  const handleStartGame = async (validUserId) => {
+  // 開始測驗流程 (撈取 40 道題目)
+  const handleStartGame = async (validUserId, validUserName) => {
     setUserId(validUserId);
+    setUserName(validUserName);
     localStorage.setItem('CYBER_QUIZ_LAST_ID', validUserId);
+    localStorage.setItem('CYBER_QUIZ_LAST_NAME', validUserName);
+
     setView('FETCHING');
     setFetchError(null);
     setUserAnswers({});
     setCurrentIndex(0);
 
     try {
-      const qCount = config.questionCount || 5;
+      const qCount = config.questionCount || 40;
       const res = await fetchQuestions(qCount);
-      
+
       if (!res.questions || res.questions.length === 0) {
         throw new Error('未取得任何題目，請確認試算表「題目」工作表內有題目資料。');
       }
 
-      // 為每一關隨機挑選 1 位不重複的 Pixel 關主
-      const bosses = bossPreloader.pickRandomBosses(res.questions.length);
-
       setQuestions(res.questions);
-      setStageBosses(bosses);
       setView('BATTLE');
     } catch (err) {
       sound.wrong();
@@ -81,7 +69,7 @@ export default function App() {
     setUserAnswers(updated);
 
     if (currentIndex + 1 < questions.length) {
-      // 進入下一關
+      // 進入下一題
       setCurrentIndex(prev => prev + 1);
     } else {
       // 完成所有題目，送交結算
@@ -96,11 +84,15 @@ export default function App() {
     try {
       const result = await submitAnswers({
         userId,
+        userName,
         answers: finalAnswers,
-        passThreshold: config.passThreshold || 3,
+        passThreshold: config.passThreshold || 32,
       });
 
-      setResultData(result);
+      setResultData({
+        ...result,
+        userName,
+      });
       setView('RESULT');
     } catch (err) {
       console.error('結算傳送失敗：', err);
@@ -110,12 +102,7 @@ export default function App() {
 
   const handleRestart = () => {
     sound.select();
-    handleStartGame(userId);
-  };
-
-  const handleSwitchUser = () => {
-    sound.click();
-    setView('HOME');
+    handleStartGame(userId, userName);
   };
 
   return (
@@ -124,6 +111,7 @@ export default function App() {
 
       <Navbar
         userId={userId}
+        userName={userName}
         isMock={config.isMock}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
@@ -153,8 +141,9 @@ export default function App() {
           <HomeView
             userId={userId}
             setUserId={setUserId}
+            userName={userName}
+            setUserName={setUserName}
             onStartGame={handleStartGame}
-            preloadProgress={preloadProgress}
             config={config}
           />
         )}
@@ -174,8 +163,8 @@ export default function App() {
               <h3 className="neon-text-cyan" style={{ fontSize: '1.3rem', marginBottom: '12px' }}>
                 連線題庫中...
               </h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                正在從 Google Sheets 隨機抽取 {config.questionCount} 道關卡題目...
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+                正在選取{config.questionCount || 40}道題目...
               </p>
             </div>
           </div>
@@ -187,21 +176,23 @@ export default function App() {
             currentIndex={currentIndex}
             totalCount={questions.length}
             currentQuestion={questions[currentIndex]}
-            currentBoss={stageBosses[currentIndex]}
             onAnswerSelected={handleAnswerSelected}
             userAnswers={userAnswers}
           />
         )}
 
         {view === 'SUBMITTING' && (
-          <SubmittingView userId={userId} isMock={config.isMock} />
+          <SubmittingView
+            userId={userId}
+            userName={userName}
+            isMock={config.isMock}
+          />
         )}
 
         {view === 'RESULT' && (
           <ResultView
             resultData={resultData}
             onRestart={handleRestart}
-            onSwitchUser={handleSwitchUser}
           />
         )}
       </main>
@@ -209,10 +200,9 @@ export default function App() {
       {/* 底部 HUD 狀態欄 */}
       <footer style={{
         borderTop: '1px solid rgba(0, 240, 255, 0.1)',
-        background: 'rgba(6, 9, 17, 0.8)',
+        background: 'rgba(6, 9, 17, 0.85)',
         padding: '12px 24px',
-        fontSize: '0.75rem',
-        fontFamily: 'var(--font-tech)',
+        fontSize: '0.78rem',
         color: 'var(--text-dim)',
         display: 'flex',
         alignItems: 'center',
@@ -220,8 +210,8 @@ export default function App() {
         position: 'relative',
         zIndex: 20,
       }}>
-        <div>CYBER QUIZ BATTLE // REACT VITE + GOOGLE APPS SCRIPT</div>
-        <div>100 PIXEL BOSSES ARCHIVE // DICEBEAR API</div>
+        <div>樹億興業股份有限公司 // 職業安全衛生訓練測驗系統</div>
+        <div>OCCUPATIONAL SAFETY AND HEALTH TRAINING QUIZ SYSTEM</div>
       </footer>
 
       {isSettingsOpen && (

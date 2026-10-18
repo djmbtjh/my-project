@@ -1,6 +1,7 @@
 /**
  * =========================================================================
- * 闖關問答遊戲 - Google Apps Script (GAS) 後端核心代碼
+ * 樹億興業股份有限公司 - 職業安全衛生訓練測驗系統
+ * Google Apps Script (GAS) 後端核心代碼
  * =========================================================================
  * 說明：
  * 1. 本程式請直接貼入 Google Sheets 的「擴充功能」->「Apps Script」中。
@@ -19,15 +20,15 @@ const SHEET_ANSWERS = '回答';
  */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  ui.createMenu('🎮 闖關遊戲管理')
-    .addItem('⚡ 自動建立/初始化工作表與示範題目', 'setupInitialSheets')
+  ui.createMenu('🏢 職安測驗管理')
+    .addItem('⚡ 自動建立/初始化工作表與職安示範題目', 'setupInitialSheets')
     .addToUi();
 }
 
 /**
  * 處理 GET 請求
  * 動作：
- * ?action=getQuestions&count=5 -> 隨機抽取 N 題（不包含解答欄位）
+ * ?action=getQuestions&count=40 -> 隨機抽取 N 題
  * ?action=ping -> 測試連線狀態
  */
 function doGet(e) {
@@ -40,7 +41,7 @@ function doGet(e) {
     }
 
     if (action === 'getQuestions') {
-      const count = parseInt(params.count, 10) || 5;
+      const count = parseInt(params.count, 10) || 40;
       const questions = getRandomQuestions(count);
       return createJsonResponse({
         success: true,
@@ -59,9 +60,10 @@ function doGet(e) {
  * 處理 POST 請求 (提交作答結果)
  * Payload 格式：
  * {
- *   "userId": "player_001",
+ *   "userId": "SY-001",
+ *   "userName": "王大明",
  *   "answers": { "1": "A", "2": "C", ... },
- *   "passThreshold": 3
+ *   "passThreshold": 32
  * }
  */
 function doPost(e) {
@@ -74,12 +76,16 @@ function doPost(e) {
     }
 
     const userId = (postData.userId || '').toString().trim();
+    const userName = (postData.userName || '').toString().trim();
     const userAnswers = postData.answers || {};
-    const passThreshold = parseInt(postData.passThreshold, 10) || 3;
+    const passThreshold = parseInt(postData.passThreshold, 10) || 32;
 
     if (!userId) {
-      return createJsonResponse({ success: false, error: '缺少使用者 ID (Missing userId)' });
+      return createJsonResponse({ success: false, error: '缺少員工編號 (Missing userId)' });
     }
+
+    // 格式化顯示 ID: "員工編號 (姓名)"
+    const idKey = userName ? `${userId} (${userName})` : userId;
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const qSheet = ss.getSheetByName(SHEET_QUESTIONS);
@@ -88,7 +94,7 @@ function doPost(e) {
     if (!qSheet || !aSheet) {
       return createJsonResponse({
         success: false,
-        error: '找不到「題目」或「回答」工作表，請先點選試算表選單「🎮 闖關遊戲管理」進行初始化。'
+        error: '找不到「題目」或「回答」工作表，請先點選試算表選單「🏢 職安測驗管理」進行初始化。'
       });
     }
 
@@ -98,7 +104,6 @@ function doPost(e) {
       return createJsonResponse({ success: false, error: '「題目」工作表中無資料' });
     }
 
-    // 建立題目查找表：id -> { question, A, B, C, D, answer }
     const qMap = {};
     for (let i = 1; i < qData.length; i++) {
       const row = qData[i];
@@ -111,7 +116,7 @@ function doPost(e) {
       };
     }
 
-    // 2. 逐題核對玩家作答
+    // 2. 逐題核對作答
     const submittedIds = Object.keys(userAnswers);
     let correctCount = 0;
     const totalQuestions = submittedIds.length;
@@ -134,14 +139,13 @@ function doPost(e) {
       }
     });
 
-    // 計算分數 (百分制)
     const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-    const isPassed = correctCount >= passThreshold;
+    const isPassed = score >= 80; // 80 分以上及格
     const nowTimeStr = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy/MM/dd HH:mm:ss');
 
     // 3. 處理「回答」工作表記錄
     // 欄位定義：
-    // [0] ID
+    // [0] ID (或 員工編號 (姓名))
     // [1] 闖關次數
     // [2] 總分
     // [3] 最高分
@@ -152,14 +156,15 @@ function doPost(e) {
     let userRowIndex = -1;
 
     for (let r = 1; r < aData.length; r++) {
-      if (String(aData[r][0]).trim() === userId) {
-        userRowIndex = r + 1; // 1-based index in Sheet
+      const rowId = String(aData[r][0]).trim();
+      // 比對 ID 開頭或完全一致
+      if (rowId === idKey || rowId === userId || rowId.startsWith(userId + ' ') || rowId.startsWith(userId + '(')) {
+        userRowIndex = r + 1;
         break;
       }
     }
 
     if (userRowIndex > 0) {
-      // 既有玩家資料
       const oldRow = aData[userRowIndex - 1];
       const oldAttempts = Number(oldRow[1]) || 0;
       const oldTotalScore = Number(oldRow[2]) || 0;
@@ -174,15 +179,15 @@ function doPost(e) {
       let newFirstPassScore = oldFirstPassScore;
       let newPassAttempts = oldPassAttempts;
 
-      // 若先前尚未通關，而本次達成通關門檻，記錄第一次通關分數與嘗試次數
       const hasPreviousPass = (oldFirstPassScore !== '' && oldFirstPassScore !== null && oldFirstPassScore !== undefined && oldFirstPassScore !== '-');
       if (!hasPreviousPass && isPassed) {
         newFirstPassScore = score;
         newPassAttempts = newAttempts;
       }
 
-      // 更新整列
-      aSheet.getRange(userRowIndex, 2, 1, 6).setValues([[
+      // 更新原列（同時更新為包含姓名的最新標籤）
+      aSheet.getRange(userRowIndex, 1, 1, 7).setValues([[
+        idKey,
         newAttempts,
         newTotalScore,
         newHighScore,
@@ -191,24 +196,24 @@ function doPost(e) {
         nowTimeStr
       ]]);
     } else {
-      // 全新玩家，新增一列
       const firstPassScore = isPassed ? score : '';
       const passAttempts = isPassed ? 1 : '';
 
       aSheet.appendRow([
-        userId,
-        1,               // 闖關次數
-        score,           // 總分
-        score,           // 最高分
-        firstPassScore,  // 第一次通關分數
-        passAttempts,    // 花了幾次通關
-        nowTimeStr       // 最近遊玩時間
+        idKey,
+        1,
+        score,
+        score,
+        firstPassScore,
+        passAttempts,
+        nowTimeStr
       ]);
     }
 
     return createJsonResponse({
       success: true,
       userId: userId,
+      userName: userName,
       score: score,
       correctCount: correctCount,
       totalQuestions: totalQuestions,
@@ -224,7 +229,7 @@ function doPost(e) {
 }
 
 /**
- * 從「題目」工作表隨機抽取 N 題（不包含解答欄位）
+ * 從「題目」工作表隨機抽取 N 題（包含 correctAnswer 供即時回饋）
  */
 function getRandomQuestions(count) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -234,10 +239,9 @@ function getRandomQuestions(count) {
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
 
-  // 取得所有題目資料行 (排除標題行)
   const rows = data.slice(1);
 
-  // Fisher-Yates 洗牌演算法
+  // Fisher-Yates 洗牌
   for (let i = rows.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [rows[i], rows[j]] = [rows[j], rows[i]];
@@ -245,7 +249,6 @@ function getRandomQuestions(count) {
 
   const selectedRows = rows.slice(0, Math.min(count, rows.length));
 
-  // 回傳前端格式（絕對不傳送解答欄位）
   return selectedRows.map(row => ({
     id: String(row[0]),
     question: row[1],
@@ -254,13 +257,11 @@ function getRandomQuestions(count) {
       B: row[3],
       C: row[4],
       D: row[5]
-    }
+    },
+    correctAnswer: String(row[6]).trim().toUpperCase()
   }));
 }
 
-/**
- * 產生標準 JSON 格式回應 (包含 CORS 標頭以供瀏覽器安全存取)
- */
 function createJsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
@@ -273,12 +274,7 @@ function setupInitialSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // 1. 初始化「題目」表
-  let qSheet = ss.getSheetByName(SHEET_QUESTIONS);
-  if (!qSheet) {
-    qSheet = ss.insertSheet(SHEET_QUESTIONS);
-  }
-
-  // 設定標題行
+  let qSheet = ss.getSheetByName(SHEET_QUESTIONS) || ss.insertSheet(SHEET_QUESTIONS);
   const qHeaders = ['題號', '題目', 'A', 'B', 'C', 'D', '解答'];
   qSheet.getRange(1, 1, 1, qHeaders.length).setValues([qHeaders]);
   qSheet.getRange(1, 1, 1, qHeaders.length)
@@ -286,29 +282,8 @@ function setupInitialSheets() {
     .setFontColor('#f8fafc')
     .setFontWeight('bold');
 
-  // 若只有標題則填入示範題庫
-  if (qSheet.getLastRow() <= 1) {
-    const sampleQuestions = [
-      [1, '在 JavaScript 中，typeof null 的回傳值是什麼？', 'null', 'undefined', 'object', 'boolean', 'C'],
-      [2, 'React 中用於在元件掛載或狀態變更時執行副作用的 Hook 是什麼？', 'useState', 'useEffect', 'useMemo', 'useRef', 'B'],
-      [3, '下列何者是 CSS 用於設定彈性盒模型 (Flexbox) 容器主軸對齊的屬性？', 'align-items', 'justify-content', 'flex-direction', 'align-content', 'B'],
-      [4, 'HTTP 狀態碼 403 代表什麼意義？', 'Not Found (找不到資源)', 'Forbidden (禁止存取)', 'Unauthorized (未認證)', 'Internal Server Error', 'B'],
-      [5, '在關聯式資料庫中，下列何者指令用於自資料表中撈取資料？', 'UPDATE', 'INSERT', 'SELECT', 'DELETE', 'C'],
-      [6, 'Git 指令中，哪一個命令用於建立並切換至新的分支？', 'git checkout -b', 'git branch -d', 'git merge', 'git pull', 'A'],
-      [7, '哪一種資料結構遵循「先進後出 (FILO / LIFO)」原則？', 'Queue (佇列)', 'Stack (堆疊)', 'Linked List (鏈結串列)', 'Array (陣列)', 'B'],
-      [8, '下列哪一個是專門打包與熱重載的前端極速構建工具？', 'Vite', 'Babel', 'jQuery', 'Grunt', 'A'],
-      [9, 'TypeScript 中，哪一個關鍵字可用於定義物件型別結構？', 'interface', 'struct', 'record', 'define', 'A'],
-      [10, '在前端中，用於實現非同步 Promise 簡潔語法的成對關鍵字是什麼？', 'try / catch', 'async / await', 'then / catch', 'defer / async', 'B']
-    ];
-    qSheet.getRange(2, 1, sampleQuestions.length, 7).setValues(sampleQuestions);
-  }
-
   // 2. 初始化「回答」表
-  let aSheet = ss.getSheetByName(SHEET_ANSWERS);
-  if (!aSheet) {
-    aSheet = ss.insertSheet(SHEET_ANSWERS);
-  }
-
+  let aSheet = ss.getSheetByName(SHEET_ANSWERS) || ss.insertSheet(SHEET_ANSWERS);
   const aHeaders = ['ID', '闖關次數', '總分', '最高分', '第一次通關分數', '花了幾次通關', '最近遊玩時間'];
   aSheet.getRange(1, 1, 1, aHeaders.length).setValues([aHeaders]);
   aSheet.getRange(1, 1, 1, aHeaders.length)
@@ -316,5 +291,5 @@ function setupInitialSheets() {
     .setFontColor('#38bdf8')
     .setFontWeight('bold');
 
-  SpreadsheetApp.getUi().alert('✅ 工作表「題目」與「回答」初始化完成！已填入 10 題示範題目。');
+  SpreadsheetApp.getUi().alert('✅ 樹億興業 職業安全衛生測驗「題目」與「回答」工作表初始化完成！');
 }

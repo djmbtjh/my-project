@@ -1,34 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Zap, Skull, CheckCircle } from 'lucide-react';
+import { Zap, CheckCircle2, XCircle, ShieldCheck, CheckCircle } from 'lucide-react';
 import { sound } from '../services/soundEffects';
 
 export default function BattleView({
   currentIndex,
   totalCount,
   currentQuestion,
-  currentBoss,
   onAnswerSelected,
   userAnswers
 }) {
   const [selectedOption, setSelectedOption] = useState(() => userAnswers[currentQuestion?.id] || null);
-  const [isBossHurt, setIsBossHurt] = useState(false);
-  const [bossHp, setBossHp] = useState(100);
-  const [bossDialogue, setBossDialogue] = useState(currentBoss?.taunt || '你通不過我的防火牆！');
+  const [feedback, setFeedback] = useState(null); // null | { isCorrect: boolean, key: string }
 
   const handleOptionClick = useCallback((key) => {
     if (selectedOption !== null) return;
     setSelectedOption(key);
 
-    // 觸發音效與關主受擊動畫
-    sound.bossHit();
-    setIsBossHurt(true);
-    setBossHp(20);
-    setBossDialogue(currentBoss?.hurtQuote || '系統遭受衝擊！');
+    const isCorrect = currentQuestion.correctAnswer
+      ? key.toUpperCase() === currentQuestion.correctAnswer.toUpperCase()
+      : true;
 
+    setFeedback({ isCorrect, key });
+
+    if (isCorrect) {
+      sound.correct();
+    } else {
+      sound.wrong();
+    }
+
+    // 停留 1.1 秒讓受測同仁清楚檢視答對或答錯畫面後自動進入下一題
     setTimeout(() => {
       onAnswerSelected(currentQuestion.id, key);
-    }, 450);
-  }, [selectedOption, currentBoss, currentQuestion, onAnswerSelected]);
+    }, 1100);
+  }, [selectedOption, currentQuestion, onAnswerSelected]);
 
   // 支援鍵盤快速鍵 (1/2/3/4 或 A/B/C/D)
   useEffect(() => {
@@ -50,7 +54,7 @@ export default function BattleView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedOption, currentQuestion, handleOptionClick]);
 
-  if (!currentQuestion || !currentBoss) return null;
+  if (!currentQuestion) return null;
 
   const optionsList = [
     { key: 'A', text: currentQuestion.options?.A },
@@ -73,26 +77,26 @@ export default function BattleView({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'rgba(15, 23, 42, 0.7)',
-        border: '1px solid rgba(0, 240, 255, 0.2)',
+        background: 'rgba(15, 23, 42, 0.75)',
+        border: '1px solid rgba(0, 240, 255, 0.25)',
         borderRadius: '12px',
         padding: '12px 20px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Zap size={18} color="var(--cyan)" />
-          <span style={{ fontFamily: 'var(--font-tech)', fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
-            STAGE <span style={{ color: 'var(--cyan)' }}>{currentIndex + 1}</span> / {totalCount}
+          <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>
+            題目 <span style={{ color: 'var(--cyan)' }}>{currentIndex + 1}</span> / {totalCount}
           </span>
         </div>
 
         {/* 進度長條 */}
-        <div style={{ flex: 1, maxWidth: '280px', margin: '0 20px' }}>
-          <div className="hp-bar-bg" style={{ height: '6px' }}>
+        <div style={{ flex: 1, maxWidth: '300px', margin: '0 20px' }}>
+          <div className="hp-bar-bg" style={{ height: '8px' }}>
             <div
               className="hp-bar-fill"
               style={{
                 width: `${((currentIndex + 1) / totalCount) * 100}%`,
-                background: 'linear-gradient(90deg, #00f0ff, #b026ff)',
+                background: 'linear-gradient(90deg, #00f0ff, #10b981)',
               }}
             />
           </div>
@@ -100,7 +104,6 @@ export default function BattleView({
 
         <div style={{
           fontSize: '0.8rem',
-          fontFamily: 'var(--font-tech)',
           color: 'var(--text-muted)',
           background: 'rgba(0, 0, 0, 0.4)',
           padding: '4px 10px',
@@ -110,116 +113,126 @@ export default function BattleView({
         </div>
       </div>
 
-      {/* 關主競技擂台區塊 (Boss Arena) */}
+      {/* 顯示答對或答錯的畫面 (取代原本關主擂台) */}
       <div className="cyber-card" style={{
         padding: '28px 24px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '190px',
+        textAlign: 'center',
         position: 'relative',
+        background: feedback
+          ? (feedback.isCorrect ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 0, 85, 0.12)')
+          : 'rgba(15, 23, 42, 0.7)',
+        borderColor: feedback
+          ? (feedback.isCorrect ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255, 0, 85, 0.5)')
+          : 'var(--border-neon)',
+        transition: 'all 0.3s ease',
       }}>
         <div className="tech-corner-tl" />
         <div className="tech-corner-tr" />
         <div className="tech-corner-bl" />
         <div className="tech-corner-br" />
 
-        {/* 關主頭銜與名稱 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '16px',
-        }}>
-          <span style={{
-            fontFamily: 'var(--font-tech)',
-            fontSize: '0.8rem',
-            background: 'rgba(176, 38, 255, 0.2)',
-            border: '1px solid var(--purple)',
-            color: '#c084fc',
-            padding: '2px 10px',
-            borderRadius: '4px',
-          }}>
-            LV.{currentBoss.level} BOSS
-          </span>
-          <span style={{
-            fontSize: '1.15rem',
-            fontWeight: 800,
-            color: '#fff',
-            letterSpacing: '1px',
-          }}>
-            {currentBoss.title} · <span style={{ color: 'var(--cyan)' }}>{currentBoss.name}</span>
-          </span>
-        </div>
-
-        {/* 關主對話氣泡 */}
-        <div className="boss-bubble" style={{ marginBottom: '16px' }}>
-          "{bossDialogue}"
-        </div>
-
-        {/* 關主像素頭像 (帶有懸浮與受擊震動效果) */}
-        <div style={{
-          position: 'relative',
-          width: '160px',
-          height: '160px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '10px 0 20px',
-        }}>
-          {/* 地面科技光環 */}
-          <div style={{
-            position: 'absolute',
-            bottom: '-12px',
-            width: '150px',
-            height: '30px',
-            borderRadius: '50%',
-            background: 'radial-gradient(ellipse, rgba(0, 240, 255, 0.4) 0%, transparent 70%)',
-            transform: 'rotateX(60deg)',
-            pointerEvents: 'none',
-          }} />
-
-          <img
-            src={currentBoss.avatarUrl}
-            alt={currentBoss.name}
-            className={`pixel-boss-avatar ${isBossHurt ? 'boss-damaged' : 'boss-float'}`}
-            style={{
-              width: '140px',
-              height: '140px',
-              userSelect: 'none',
-            }}
-          />
-        </div>
-
-        {/* 關主血條 */}
-        <div style={{ width: '100%', maxWidth: '340px' }}>
+        {feedback === null ? (
+          /* 作答前提示畫面 */
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '54px',
+              height: '54px',
+              borderRadius: '50%',
+              background: 'rgba(0, 240, 255, 0.1)',
+              border: '1px solid var(--cyan)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 15px rgba(0, 240, 255, 0.3)',
+            }}>
+              <ShieldCheck size={30} color="var(--cyan)" />
+            </div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>
+              職業安全衛生作業守則測驗
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '520px' }}>
+              請仔細審視下方題目，點選最符合安全衛生法規與標準作業程序的選項。
+            </p>
+          </div>
+        ) : feedback.isCorrect ? (
+          /* 答對畫面 */
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '0.8rem',
-            fontFamily: 'var(--font-tech)',
-            marginBottom: '4px',
-            color: 'var(--text-muted)',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+            animation: 'fadeIn 0.25s ease-out',
           }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Skull size={13} color="var(--red)" />
-              <span>BOSS HP</span>
-            </span>
-            <span style={{ color: bossHp < 30 ? 'var(--red)' : '#34d399' }}>
-              {bossHp}%
-            </span>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'rgba(16, 185, 129, 0.2)',
+              border: '2px solid var(--green)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 25px var(--green)',
+            }}>
+              <CheckCircle2 size={38} color="#34d399" />
+            </div>
+            <div style={{
+              fontSize: '1.6rem',
+              fontWeight: 900,
+              color: '#34d399',
+              textShadow: '0 0 15px rgba(16, 185, 129, 0.6)',
+              letterSpacing: '1px',
+            }}>
+              ✓ 答對！
+            </div>
+            <p style={{ color: '#e2e8f0', fontSize: '0.95rem' }}>
+              您的作答觀念正確，符合職業安全作業標準！
+            </p>
           </div>
-          <div className="hp-bar-bg">
-            <div
-              className="hp-bar-fill"
-              style={{
-                width: `${bossHp}%`,
-                background: bossHp < 30
-                  ? 'linear-gradient(90deg, #ff0055, #f43f5e)'
-                  : 'linear-gradient(90deg, #10b981, #00f0ff)',
-              }}
-            />
+        ) : (
+          /* 答錯畫面 */
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+            animation: 'fadeIn 0.25s ease-out',
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'rgba(255, 0, 85, 0.2)',
+              border: '2px solid var(--red)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 25px var(--red)',
+            }}>
+              <XCircle size={38} color="#fb7185" />
+            </div>
+            <div style={{
+              fontSize: '1.6rem',
+              fontWeight: 900,
+              color: '#fb7185',
+              textShadow: '0 0 15px rgba(255, 0, 85, 0.6)',
+              letterSpacing: '1px',
+            }}>
+              ❌ 答錯！
+            </div>
+            <p style={{ color: '#fff', fontSize: '0.95rem' }}>
+              您的回答為【{feedback.key}】，正確解答應為：
+              <b style={{ color: '#34d399', marginLeft: '6px' }}>
+                【{currentQuestion.correctAnswer}】 {currentQuestion.options?.[currentQuestion.correctAnswer] || ''}
+              </b>
+            </p>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 題目與選項作答區 (Question & Options) */}
@@ -232,17 +245,17 @@ export default function BattleView({
         {/* 題目描述 */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{
-            fontSize: '0.85rem',
-            fontFamily: 'var(--font-tech)',
+            fontSize: '0.88rem',
+            fontWeight: 700,
             color: 'var(--cyan)',
             marginBottom: '8px',
           }}>
-            QUESTION #{currentIndex + 1}
+            題目 #{currentIndex + 1}
           </div>
           <h2 style={{
             fontSize: '1.25rem',
             fontWeight: 700,
-            lineHeight: 1.5,
+            lineHeight: 1.6,
             color: '#fff',
           }}>
             {currentQuestion.question}

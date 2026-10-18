@@ -1,22 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Trophy, XCircle, CheckCircle2, RotateCcw, UserCheck, Sheet, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { Trophy, XCircle, CheckCircle2, RotateCcw, Sheet, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { sound } from '../services/soundEffects';
 
 export default function ResultView({
   resultData,
-  onRestart,
-  onSwitchUser
+  onRestart
 }) {
   const [showDetails, setShowDetails] = useState(true);
 
   const {
     userId,
+    userName,
     score = 0,
     correctCount = 0,
-    totalQuestions = 5,
+    totalQuestions = 40,
     passed = false,
-    passThreshold = 3,
     timestamp,
     userStats,
     results = [],
@@ -26,13 +25,12 @@ export default function ResultView({
   useEffect(() => {
     if (passed) {
       sound.win();
-      // 慶祝彩帶特效
       try {
         confetti({
-          particleCount: 90,
+          particleCount: 100,
           spread: 70,
           origin: { y: 0.6 },
-          colors: ['#00f0ff', '#b026ff', '#10b981', '#f59e0b'],
+          colors: ['#00f0ff', '#10b981', '#fbbf24', '#38bdf8'],
         });
       } catch {}
     } else {
@@ -74,27 +72,27 @@ export default function ResultView({
           boxShadow: passed ? '0 0 25px var(--green)' : '0 0 25px var(--red)',
         }}>
           {passed ? (
-            <Trophy size={36} color="var(--green)" />
+            <Trophy size={38} color="var(--green)" />
           ) : (
-            <XCircle size={36} color="var(--red)" />
+            <XCircle size={38} color="var(--red)" />
           )}
         </div>
 
         <h1 style={{
-          fontFamily: 'var(--font-tech)',
-          fontSize: 'clamp(1.8rem, 4vw, 2.6rem)',
-          letterSpacing: '2px',
+          fontSize: 'clamp(1.8rem, 4vw, 2.4rem)',
+          letterSpacing: '1px',
+          fontWeight: 800,
           color: passed ? '#34d399' : '#fb7185',
           textShadow: passed ? '0 0 15px rgba(16, 185, 129, 0.5)' : '0 0 15px rgba(255, 0, 85, 0.5)',
           marginBottom: '8px',
         }}>
-          {passed ? 'MISSION CLEARED // 通關成功！' : 'MISSION FAILED // 未達通關門檻'}
+          {passed ? '測驗合格 // 通過測驗！' : '未達通過門檻'}
         </h1>
 
         <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '28px' }}>
           {passed
-            ? `恭喜特工 ${userId}！你成功突破了神經網路陣列，達到了指定標準。`
-            : `答對題數未達指定門檻（需答對 ${passThreshold} 題以上），再接再厲！`}
+            ? `恭喜同仁 ${userName ? `${userName} (${userId})` : userId}！您已順利通過職業安全衛生訓練測驗。`
+            : `未達通過門檻（需達到 80 分及格標準），請檢視答錯項目後再次測驗。`}
         </p>
 
         {/* 戰績數據網格 */}
@@ -110,7 +108,7 @@ export default function ResultView({
             borderRadius: '12px',
             padding: '16px',
           }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontFamily: 'var(--font-tech)' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
               本次得分
             </div>
             <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--cyan)' }}>
@@ -124,7 +122,7 @@ export default function ResultView({
             borderRadius: '12px',
             padding: '16px',
           }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontFamily: 'var(--font-tech)' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
               答對題數
             </div>
             <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff' }}>
@@ -138,11 +136,11 @@ export default function ResultView({
             borderRadius: '12px',
             padding: '16px',
           }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontFamily: 'var(--font-tech)' }}>
-              通關門檻 (THRESHOLD)
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+              及格門檻
             </div>
             <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fbbf24' }}>
-              {passThreshold} <span style={{ fontSize: '0.9rem', color: 'var(--text-dim)' }}>題</span>
+              80 <span style={{ fontSize: '0.9rem', color: 'var(--text-dim)' }}>分</span>
             </div>
           </div>
 
@@ -152,8 +150,8 @@ export default function ResultView({
             borderRadius: '12px',
             padding: '16px',
           }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontFamily: 'var(--font-tech)' }}>
-              通關狀態
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+              通過狀態
             </div>
             <div style={{
               fontSize: '1.3rem',
@@ -166,7 +164,7 @@ export default function ResultView({
           </div>
         </div>
 
-        {/* Google Sheets 「回答」工作表記錄反饋 */}
+        {/* 同步狀態回饋 */}
         <div style={{
           background: 'rgba(15, 23, 42, 0.9)',
           border: '1px solid rgba(0, 240, 255, 0.2)',
@@ -185,12 +183,12 @@ export default function ResultView({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              fontFamily: 'var(--font-tech)',
-              fontSize: '0.9rem',
+              fontSize: '0.95rem',
+              fontWeight: 700,
               color: 'var(--cyan)',
             }}>
               <Sheet size={18} />
-              <span>Google Sheets「回答」工作表同步狀態</span>
+              <span>同步狀態</span>
             </span>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
               {timestamp}
@@ -208,16 +206,16 @@ export default function ResultView({
               padding: '12px',
               borderRadius: '8px',
             }}>
-              <div>ID: <b style={{ color: '#fff' }}>{userStats['ID']}</b></div>
-              <div>闖關次數: <b style={{ color: 'var(--cyan)' }}>{userStats['闖關次數']}</b></div>
-              <div>累計總分: <b style={{ color: '#fff' }}>{userStats['總分']}</b></div>
+              <div>員工編號: <b style={{ color: '#fff' }}>{userStats['ID']}</b></div>
+              {userStats['姓名'] && <div>姓名: <b style={{ color: 'var(--cyan)' }}>{userStats['姓名']}</b></div>}
+              <div>測驗次數: <b style={{ color: 'var(--cyan)' }}>{userStats['闖關次數']}</b></div>
               <div>最高分: <b style={{ color: '#34d399' }}>{userStats['最高分']}</b></div>
-              <div>第一次通關分數: <b style={{ color: '#fbbf24' }}>{userStats['第一次通關分數'] || '尚未通關'}</b></div>
+              <div>第一次通關分數: <b style={{ color: '#fbbf24' }}>{userStats['第一次通關分數'] || '尚未通過'}</b></div>
               <div>花了幾次通關: <b style={{ color: '#fff' }}>{userStats['花了幾次通關'] || '-'}</b></div>
             </div>
           ) : (
-            <div style={{ fontSize: '0.85rem', color: '#34d399' }}>
-              ✓ 作答紀錄已傳送至 Google Apps Script 雲端試算表更新完畢。
+            <div style={{ fontSize: '0.88rem', color: '#34d399' }}>
+              ✓ 作答紀錄已傳送至資料庫
             </div>
           )}
 
@@ -236,36 +234,24 @@ export default function ResultView({
           )}
         </div>
 
-        {/* 操作按鈕組 */}
+        {/* 操作按鈕組 (已移除「更換特工 ID」) */}
         <div style={{
           display: 'flex',
-          flexWrap: 'wrap',
-          gap: '14px',
           justifyContent: 'center',
         }}>
           <button
             type="button"
             className="cyber-btn"
             onClick={onRestart}
-            style={{ padding: '14px 28px' }}
+            style={{ padding: '14px 32px' }}
           >
             <RotateCcw size={18} />
-            <span>再次挑戰 (PLAY AGAIN)</span>
-          </button>
-
-          <button
-            type="button"
-            className="cyber-btn cyber-btn-secondary"
-            onClick={onSwitchUser}
-            style={{ padding: '14px 24px' }}
-          >
-            <UserCheck size={18} />
-            <span>更換特工 ID</span>
+            <span>再次測驗 (RETRY QUIZ)</span>
           </button>
         </div>
       </div>
 
-      {/* 逐題解析與對比 (Review List) */}
+      {/* 測驗作答詳細內容 (Review List) */}
       <div className="cyber-card" style={{ padding: '24px' }}>
         <div className="tech-corner-tl" />
         <div className="tech-corner-tr" />
@@ -283,7 +269,7 @@ export default function ResultView({
           }}
         >
           <h3 className="neon-text-cyan" style={{ fontSize: '1.1rem' }}>
-            📊 關卡作答詳細戰報 ({correctCount} / {totalQuestions})
+            📊 測驗作答詳細內容 ({correctCount} / {totalQuestions})
           </h3>
           <button
             type="button"
@@ -311,11 +297,11 @@ export default function ResultView({
                   justifyContent: 'space-between',
                   marginBottom: '8px',
                 }}>
-                  <span style={{ fontFamily: 'var(--font-tech)', fontSize: '0.8rem', color: 'var(--cyan)' }}>
-                    STAGE {idx + 1}
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--cyan)' }}>
+                    題目 {idx + 1}
                   </span>
                   <span style={{
-                    fontSize: '0.8rem',
+                    fontSize: '0.82rem',
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
@@ -324,11 +310,11 @@ export default function ResultView({
                   }}>
                     {item.isCorrect ? (
                       <>
-                        <CheckCircle2 size={15} /> 答對 (+{Math.round(100 / totalQuestions)}分)
+                        <CheckCircle2 size={16} /> 答對 (+{Math.round(100 / totalQuestions)}分)
                       </>
                     ) : (
                       <>
-                        <XCircle size={15} /> 答錯
+                        <XCircle size={16} /> 答錯
                       </>
                     )}
                   </span>
@@ -340,12 +326,12 @@ export default function ResultView({
 
                 <div style={{
                   display: 'flex',
+                  flexWrap: 'wrap',
                   gap: '16px',
-                  fontSize: '0.85rem',
-                  fontFamily: 'var(--font-tech)',
+                  fontSize: '0.88rem',
                 }}>
                   <div style={{ color: item.isCorrect ? '#34d399' : '#fb7185' }}>
-                    你的回答：<b>{item.userAnswer}</b> {item.options?.[item.userAnswer] ? `(${item.options[item.userAnswer]})` : ''}
+                    您的回答：<b>{item.userAnswer}</b> {item.options?.[item.userAnswer] ? `(${item.options[item.userAnswer]})` : ''}
                   </div>
                   {!item.isCorrect && (
                     <div style={{ color: '#34d399' }}>
@@ -357,7 +343,7 @@ export default function ResultView({
                 {item.explanation && (
                   <div style={{
                     marginTop: '8px',
-                    fontSize: '0.8rem',
+                    fontSize: '0.82rem',
                     color: 'var(--text-muted)',
                     background: 'rgba(0, 0, 0, 0.3)',
                     padding: '6px 10px',

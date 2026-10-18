@@ -1,7 +1,7 @@
 import React from 'react';
 import { Loader2, Database } from 'lucide-react';
 
-export default function SubmittingView({ userId, isMock }) {
+export default function SubmittingView({ userId, userName, isMock }) {
   return (
     <div style={{
       maxWidth: '600px',
@@ -35,11 +35,11 @@ export default function SubmittingView({ userId, isMock }) {
         </div>
 
         <h2 className="neon-text-cyan" style={{ fontSize: '1.5rem', marginBottom: '12px' }}>
-          神經協議運算中...
+          計算分數中...
         </h2>
 
         <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '24px' }}>
-          正在核對作答數據，並同步更新至 Google Sheets「回答」工作表...
+          正在核對作答數據，並同步上傳資料庫...
         </p>
 
         <div style={{
@@ -48,14 +48,14 @@ export default function SubmittingView({ userId, isMock }) {
           gap: '8px',
           background: 'rgba(0, 240, 255, 0.1)',
           border: '1px solid rgba(0, 240, 255, 0.3)',
-          padding: '6px 16px',
+          padding: '8px 20px',
           borderRadius: '999px',
-          fontSize: '0.85rem',
-          fontFamily: 'var(--font-tech)',
+          fontSize: '0.9rem',
+          fontFamily: 'var(--font-sans)',
           color: 'var(--cyan)',
         }}>
-          <Database size={15} />
-          <span>目標 ID: {userId} · {isMock ? '本機模擬寫入' : '雲端 GAS 寫入'}</span>
+          <Database size={16} />
+          <span>員工ID: {userId}{userName ? ` (${userName})` : ''} · {isMock ? '本機模擬寫入' : '雲端 GAS 寫入'}</span>
         </div>
       </div>
     </div>

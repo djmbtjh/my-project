@@ -1,9 +1,10 @@
 import React from 'react';
-import { Volume2, VolumeX, Settings, Shield, Database, Radio } from 'lucide-react';
+import { Volume2, VolumeX, Settings, ShieldCheck, Database, Radio } from 'lucide-react';
 import { sound } from '../services/soundEffects';
 
 export default function Navbar({
   userId,
+  userName,
   isMock,
   isMuted,
   onToggleMute,
@@ -15,7 +16,7 @@ export default function Navbar({
       position: 'relative',
       zIndex: 20,
       borderBottom: '1px solid rgba(0, 240, 255, 0.2)',
-      background: 'rgba(6, 9, 17, 0.85)',
+      background: 'rgba(6, 9, 17, 0.9)',
       backdropFilter: 'blur(12px)',
       padding: '12px 24px',
       display: 'flex',
@@ -34,36 +35,35 @@ export default function Navbar({
         }}
       >
         <div style={{
-          width: '36px',
-          height: '36px',
+          width: '38px',
+          height: '38px',
           borderRadius: '8px',
-          background: 'linear-gradient(135deg, #00f0ff, #b026ff)',
+          background: 'linear-gradient(135deg, #00f0ff, #10b981)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 0 15px rgba(0, 240, 255, 0.5)',
+          boxShadow: '0 0 15px rgba(0, 240, 255, 0.4)',
         }}>
-          <Shield size={20} color="#050b14" strokeWidth={2.5} />
+          <ShieldCheck size={22} color="#050b14" strokeWidth={2.5} />
         </div>
         <div>
           <div style={{
-            fontFamily: 'var(--font-tech)',
             fontWeight: 800,
-            fontSize: '1.15rem',
-            letterSpacing: '1.5px',
+            fontSize: '1.1rem',
+            letterSpacing: '1px',
             color: '#fff',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
           }}>
-            CYBER QUIZ <span style={{ color: 'var(--cyan)', fontSize: '0.85rem' }}>// 賽博闖關戰</span>
+            樹億興業股份有限公司 <span style={{ color: 'var(--cyan)', fontSize: '0.85rem' }}>// 職業安全衛生訓練-測驗</span>
           </div>
         </div>
       </div>
 
       {/* 右側狀態與操作 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        {/* 使用者 ID 徽章 */}
+        {/* 使用者 ID 與姓名徽章 */}
         {userId && (
           <div style={{
             display: 'flex',
@@ -76,8 +76,10 @@ export default function Navbar({
             fontSize: '0.85rem',
             fontFamily: 'var(--font-tech)',
           }}>
-            <span style={{ color: 'var(--cyan)' }}>AGENT:</span>
-            <span style={{ color: '#fff', fontWeight: 700 }}>{userId}</span>
+            <span style={{ color: 'var(--cyan)' }}>員工:</span>
+            <span style={{ color: '#fff', fontWeight: 700 }}>
+              {userName ? `${userName} (${userId})` : userId}
+            </span>
           </div>
         )}
 
