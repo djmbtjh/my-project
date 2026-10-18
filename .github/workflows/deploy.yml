@@ -1,0 +1,59 @@
+name: Deploy Cyber Quiz to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# 設定 GITHUB_TOKEN 的權限以允許部署至 GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 確保同時只有一個部署程序在執行
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Build Web Application
+        env:
+          GOOGLE_APP_SCRIPT_URL: ${{ secrets.GOOGLE_APP_SCRIPT_URL || vars.GOOGLE_APP_SCRIPT_URL }}
+          VITE_GOOGLE_APP_SCRIPT_URL: ${{ secrets.GOOGLE_APP_SCRIPT_URL || vars.GOOGLE_APP_SCRIPT_URL }}
+          PASS_THRESHOLD: ${{ vars.PASS_THRESHOLD || '6' }}
+          VITE_PASS_THRESHOLD: ${{ vars.PASS_THRESHOLD || '6' }}
+          QUESTION_COUNT: ${{ vars.QUESTION_COUNT || '10' }}
+          VITE_QUESTION_COUNT: ${{ vars.QUESTION_COUNT || '10' }}
+        run: npm run build
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
